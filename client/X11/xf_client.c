@@ -86,6 +86,7 @@
 #include <winpr/synch.h>
 #include <winpr/file.h>
 #include <winpr/print.h>
+#include <winpr/sysinfo.h>
 #include <X11/XKBlib.h>
 
 #include "xf_gdi.h"
@@ -1509,6 +1510,7 @@ static void* xf_client_thread(void* param)
 		}
 	}
 
+	DWORD last_keepalive_time = 0;
 	while (!freerdp_shall_disconnect(instance))
 	{
 		/*
@@ -1563,6 +1565,13 @@ static void* xf_client_thread(void* param)
 				WLog_INFO(TAG, "Closed from X11");
 				break;
 			}
+		}
+
+		if (settings->SendKeepalives != KEEPALIVE_NEVER)
+		{
+                        rdpInput* input = xfc->context.input;
+			input->SendKeepaliveEvent(xfc->context.input,
+                                                  &last_keepalive_time);
 		}
 	}
 

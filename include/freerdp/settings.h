@@ -473,6 +473,10 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define PROXY_TYPE_NONE		0
 #define PROXY_TYPE_HTTP		1
 
+#define KEEPALIVE_NEVER         0
+#define KEEPALIVE_ALWAYS        1
+#define KEEPALIVE_IF_ACTIVE     2
+
 /* Settings */
 
 #ifdef __GNUC__
@@ -1447,6 +1451,8 @@ struct rdp_settings
 	ALIGN64 BYTE*
 	SettingsModified; /* byte array marking fields that have been modified from their default value */
 	ALIGN64 char* ActionScript;
+
+        ALIGN64 int SendKeepalives;
 };
 typedef struct rdp_settings rdpSettings;
 

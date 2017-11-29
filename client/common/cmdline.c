@@ -174,6 +174,7 @@ static COMMAND_LINE_ARGUMENT_A args[] =
 	{ "sec-nla", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "NLA protocol security" },
 	{ "sec-rdp", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "RDP protocol security" },
 	{ "sec-tls", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "TLS protocol security" },
+        { "send-keepalives", COMMAND_LINE_VALUE_OPTIONAL, "always|never|ifactive", "always", NULL, -1, NULL, "Send fake input keep-alive events"},
 	{ "serial", COMMAND_LINE_VALUE_OPTIONAL, "<name>[,<path>[,<driver>[,permissive]]]", NULL, NULL, -1, "tty", "Redirect serial device" },
 	{ "shell", COMMAND_LINE_VALUE_REQUIRED, "<shell>", NULL, NULL, -1, NULL, "Alternate shell" },
 	{ "shell-dir", COMMAND_LINE_VALUE_REQUIRED, "<dir>", NULL, NULL, -1, NULL, "Shell working directory" },
@@ -2499,6 +2500,27 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		CommandLineSwitchCase(arg, "sec-ext")
 		{
 			settings->ExtSecurity = arg->Value ? TRUE : FALSE;
+		}
+		CommandLineSwitchCase(arg, "send-keepalives")
+		{
+			if (arg->Value == NULL
+                            || strcmp(arg->Value, "always") == 0)
+			{
+				settings->SendKeepalives = KEEPALIVE_ALWAYS;
+			}
+			else if (strcmp(arg->Value, "never") == 0)
+			{
+				settings->SendKeepalives = KEEPALIVE_NEVER;
+			}
+			else if (strcmp(arg->Value, "ifactive") == 0)
+			{
+				settings->SendKeepalives = KEEPALIVE_IF_ACTIVE;
+				WLog_ERR(TAG, "send-keepalives:ifactive not yet implemented");
+			}
+			else
+			{
+				WLog_ERR(TAG, "unknown send-keepalives option: %s", arg->Value);
+			}
 		}
 		CommandLineSwitchCase(arg, "tls-ciphers")
 		{

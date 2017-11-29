@@ -58,6 +58,8 @@ typedef struct rdp_input rdpInput;
 
 #define RDP_CLIENT_INPUT_PDU_HEADER_LENGTH	4
 
+#define KEEPALIVE_INTERVAL_MILLISECS  (1000 * 60 * 2)
+
 /* defined inside libfreerdp-core */
 typedef struct rdp_input_proxy rdpInputProxy;
 
@@ -70,6 +72,7 @@ typedef BOOL (*pMouseEvent)(rdpInput* input, UINT16 flags, UINT16 x, UINT16 y);
 typedef BOOL (*pExtendedMouseEvent)(rdpInput* input, UINT16 flags, UINT16 x, UINT16 y);
 typedef BOOL (*pFocusInEvent)(rdpInput* input, UINT16 toggleStates);
 typedef BOOL (*pKeyboardPauseEvent)(rdpInput* input);
+typedef BOOL (*pSendKeepaliveEvent)(rdpInput* input, DWORD *last_keepalive_time);
 
 struct rdp_input
 {
@@ -88,6 +91,8 @@ struct rdp_input
 	UINT32 paddingB[32 - 23]; /* 23 */
 
 	/* Internal */
+
+        pSendKeepaliveEvent SendKeepaliveEvent;
 
 	BOOL asynchronous;
 	rdpInputProxy* proxy;

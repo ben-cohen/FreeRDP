@@ -41,6 +41,10 @@
 
 #define RDP_CLIENT_INPUT_PDU_HEADER_LENGTH	4
 
+/* Last sent pointer coordinates, used for keepalives. */
+static UINT16 last_x = 0;
+static UINT16 last_y = 0;
+
 static void rdp_write_client_input_pdu_header(wStream* s, UINT16 number)
 {
 	Stream_Write_UINT16(s, 1); /* numberEvents (2 bytes) */
@@ -194,6 +198,11 @@ static BOOL input_send_mouse_event(rdpInput* input, UINT16 flags, UINT16 x, UINT
 	if (!s)
 		return FALSE;
 
+	// XXX This might be the wrong place if e.g. rdp_send_client_input_pdu()
+	// returns false.
+	last_x = x;
+	last_y = y;
+
 	input_write_mouse_event(s, flags, x, y);
 	return rdp_send_client_input_pdu(rdp, s);
 }
@@ -226,6 +235,11 @@ static BOOL input_send_extended_mouse_event(rdpInput* input, UINT16 flags,
 
 	if (!s)
 		return FALSE;
+
+	// XXX This might be the wrong place if e.g. rdp_send_client_input_pdu()
+	// returns false.
+	last_x = x;
+	last_y = y;
 
 	input_write_extended_mouse_event(s, flags, x, y);
 	return rdp_send_client_input_pdu(rdp, s);
@@ -270,6 +284,26 @@ static BOOL input_send_keyboard_pause_event(rdpInput* input)
 	/* Numlock up (0x45) */
 	return input_send_keyboard_event(input, KBD_FLAGS_RELEASE,
 	                                 RDP_SCANCODE_CODE(RDP_SCANCODE_NUMLOCK));
+}
+
+BOOL input_send_keepalive_event(rdpInput* input,
+				DWORD *last_keepalive_time)
+{
+	DWORD time_now = GetTickCount();
+
+	if (time_now - *last_keepalive_time > KEEPALIVE_INTERVAL_MILLISECS)
+	{
+		*last_keepalive_time = time_now;
+
+		/* Send a fake input event at the same position as the last
+		 * one, as a keepalive. */
+		return input_send_mouse_event(input, PTR_FLAGS_MOVE,
+					      last_x, last_y);
+	}
+	else
+	{
+		return TRUE;
+	}
 }
 
 static BOOL input_send_fastpath_synchronize_event(rdpInput* input, UINT32 flags)
@@ -363,6 +397,11 @@ static BOOL input_send_fastpath_mouse_event(rdpInput* input, UINT16 flags,
 	if (!s)
 		return FALSE;
 
+	// XXX This might be the wrong place if e.g. rdp_send_client_input_pdu()
+	// returns false.
+	last_x = x;
+	last_y = y;
+
 	input_write_mouse_event(s, flags, x, y);
 	return fastpath_send_input_pdu(rdp->fastpath, s);
 }
@@ -388,6 +427,11 @@ static BOOL input_send_fastpath_extended_mouse_event(rdpInput* input, UINT16 fla
 
 	if (!s)
 		return FALSE;
+
+	// XXX This might be the wrong place if e.g. rdp_send_client_input_pdu()
+	// returns false.
+	last_x = x;
+	last_y = y;
 
 	input_write_extended_mouse_event(s, flags, x, y);
 	return fastpath_send_input_pdu(rdp->fastpath, s);
@@ -456,6 +500,26 @@ static BOOL input_send_fastpath_keyboard_pause_event(rdpInput* input)
 	Stream_Write_UINT8(s, keyUpEvent);
 	Stream_Write_UINT8(s, RDP_SCANCODE_CODE(RDP_SCANCODE_NUMLOCK));
 	return fastpath_send_multiple_input_pdu(rdp->fastpath, s, 4);
+}
+
+BOOL input_send_fastpath_keepalive_event(rdpInput* input,
+					 DWORD *last_keepalive_time)
+{
+	DWORD time_now = GetTickCount();
+
+	if (time_now - *last_keepalive_time > KEEPALIVE_INTERVAL_MILLISECS)
+	{
+		*last_keepalive_time = time_now;
+
+		/* Send a fake input event at the same position as the last
+		 * one, as a keepalive. */
+		return input_send_fastpath_mouse_event(input, PTR_FLAGS_MOVE,
+						       last_x, last_y);
+	}
+	else
+	{
+		return TRUE;
+	}
 }
 
 static BOOL input_recv_sync_event(rdpInput* input, wStream* s)
@@ -649,6 +713,7 @@ BOOL input_register_client_callbacks(rdpInput* input)
 		input->MouseEvent = input_send_fastpath_mouse_event;
 		input->ExtendedMouseEvent = input_send_fastpath_extended_mouse_event;
 		input->FocusInEvent = input_send_fastpath_focus_in_event;
+                input->SendKeepaliveEvent = input_send_fastpath_keepalive_event;
 	}
 	else
 	{
@@ -659,6 +724,7 @@ BOOL input_register_client_callbacks(rdpInput* input)
 		input->MouseEvent = input_send_mouse_event;
 		input->ExtendedMouseEvent = input_send_extended_mouse_event;
 		input->FocusInEvent = input_send_focus_in_event;
+                input->SendKeepaliveEvent = input_send_keepalive_event;
 	}
 
 	input->asynchronous = settings->AsyncInput;
